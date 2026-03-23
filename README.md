@@ -5,6 +5,16 @@
 주소 하나하나 검색해서 즐겨찾기 누르는 반복 작업, 이제 안 해도 됩니다.
 엑셀 파일 하나만 준비하면 수백 개 주소를 자동으로 즐겨찾기에 등록합니다.
 
+https://github.com/user-attachments/assets/demo.mp4
+
+---
+
+## 미리보기
+
+| 데이터 설정 | 플랫폼 설정 | 옵션 설정 |
+|:-----------:|:-----------:|:---------:|
+| ![데이터 설정](screenshot/datasetting.png) | ![플랫폼 설정](screenshot/platformsetting.png) | ![옵션 설정](screenshot/optionsetting.png) |
+
 ---
 
 ## 이런 분들에게 유용합니다
