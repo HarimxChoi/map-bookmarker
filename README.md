@@ -48,8 +48,8 @@
 
 **1단계: 다운로드**
 ```
-git clone https://github.com/yourname/map-favorite-registrar
-cd map-favorite-registrar
+git clone https://github.com/HarimxChoi/map-bookmarker
+cd map-bookmarker
 ```
 
 **2단계: 설치**
@@ -108,7 +108,7 @@ python src/main.py --limit 5        # 5개만 테스트
 
 프로그램이 브라우저를 열고 자동으로 로그인합니다.
 
-- **카카오맵**: 카카오톡 알림이 오면 핸드폰에서 승인 (최대 2분 대기)
+- **카카오맵**: 카카오톡 알림이 오면 핸드폰에서 승인 (최대 5분 대기)
 - **네이버지도**: 캡차가 나오면 브라우저에서 직접 입력 (최대 5분 대기)
 
 인증 완료 후 자동으로 등록이 시작됩니다.
@@ -188,7 +188,7 @@ options:
 ## 프로젝트 구조
 
 ```
-map-favorite-registrar/
+map-bookmarker/
 ├── src/
 │   ├── main.py              # 핵심 로직 (카카오맵/네이버지도 자동화)
 │   ├── gui.py               # GUI (tkinter)
