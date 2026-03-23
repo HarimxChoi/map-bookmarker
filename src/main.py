@@ -170,30 +170,60 @@ class KakaoMapRegistrar:
 
     def login(self, page):
         self.logger.info("카카오맵 로그인 중...")
-        page.goto("https://map.kakao.com/")
-        time.sleep(1)
-
-        # 로그인 버튼 클릭
-        try:
-            page.click("a.link_login", timeout=5000)
-        except PWTimeout:
-            page.goto("https://accounts.kakao.com/login?continue=https://map.kakao.com/")
-        time.sleep(1)
+        # 로그인 페이지로 직접 이동 (map.kakao.com 경유하지 않음)
+        page.goto("https://accounts.kakao.com/login?continue=https://map.kakao.com/")
+        time.sleep(2)
 
         page.fill("input[name='loginId']", self.cfg["id"])
         time.sleep(1.5)
         page.fill("input[name='password']", self.cfg["password"])
         time.sleep(2)
         page.click("button.submit")
+        time.sleep(3)
 
-        # 카카오톡 2단계 인증 대기 (최대 5분)
+        # 2차 인증 대기: map.kakao.com으로 이동할 때까지 대기
+        # 현재 페이지 URL, 새 탭, 브라우저 주소창 모두 확인
         self.logger.info("📱 카카오톡 알림을 확인하고 핸드폰에서 로그인을 승인해주세요... (최대 5분 대기)")
-        try:
-            page.wait_for_url("**/map.kakao.com/**", timeout=300000)
-        except PWTimeout:
-            raise Exception("카카오 로그인 타임아웃 — 5분 내에 카카오톡 인증을 완료하지 않았거나 로그인 정보가 잘못됨")
-        time.sleep(1)
+        context = page.context
+        deadline = time.time() + 300
+        target_page = None
+
+        while time.time() < deadline:
+            # 1) 현재 페이지 URL 확인
+            url = page.url
+            if url.startswith("https://map.kakao.com") or url.startswith("http://map.kakao.com"):
+                target_page = page
+                break
+
+            # 2) 새 탭/팝업이 열렸는지 확인
+            for p in context.pages:
+                purl = p.url
+                if purl.startswith("https://map.kakao.com") or purl.startswith("http://map.kakao.com"):
+                    target_page = p
+                    break
+            if target_page:
+                break
+
+            # 3) JavaScript로 실제 location.href 확인 (URL 스푸핑 대응)
+            try:
+                real_url = page.evaluate("window.location.href")
+                if "map.kakao.com" in real_url and "accounts.kakao.com" not in real_url:
+                    target_page = page
+                    break
+            except Exception:
+                pass
+
+            time.sleep(3)
+        else:
+            raise Exception("카카오 로그인 타임아웃 — 5분 내에 인증을 완료하지 않았거나 로그인 정보가 잘못됨")
+
+        # 새 탭이 열린 경우 해당 페이지를 사용
+        if target_page and target_page != page:
+            page = target_page
+
+        time.sleep(2)
         self.logged_in = True
+        self._login_page = page  # register에서 사용할 페이지 참조
         self.logger.info("✅ 카카오맵 로그인 성공")
 
     def _dismiss_overlays(self, page):
@@ -714,6 +744,10 @@ def run_registration(cfg, logger, progress, items, use_kakao, use_naver,
             reg = KakaoMapRegistrar(cfg, logger)
             try:
                 reg.login(page)
+                # 로그인 후 새 탭으로 이동한 경우 해당 페이지 사용
+                if hasattr(reg, '_login_page') and reg._login_page != page:
+                    page.close()
+                    page = reg._login_page
                 logger.info(f"\n🗺  카카오맵 즐겨찾기 등록 시작 ({len(items)}개)")
                 for i, item in enumerate(items, 1):
                     if stop_event and stop_event.is_set():
