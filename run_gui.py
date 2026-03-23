@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""map-favorite-registrar GUI 실행"""
+"""map-bookmarker GUI launcher"""
 import sys, os
 
 # PyInstaller EXE 중복 실행 방지 — 반드시 최상위에서 호출

@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python src/main.py --dry-run)",
+      "Bash(python src/main.py --kakao-only --limit 1)",
+      "Bash(python src/main.py --naver-only --limit 1)",
+      "Bash(python src/main.py --naver-only)",
+      "Bash(tee logs/naver_test.log)",
+      "Bash(pandoc \"C:\\\\devdub\\\\mapFavorite\\\\map-favorite-registrar_기획안.docx\" -o \"C:\\\\devdub\\\\mapFavorite\\\\기획안_output.md\")",
+      "Bash(taskkill /f /im python.exe)",
+      "Bash(python run_gui.py)",
+      "Bash(pip show:*)",
+      "Bash(pip install:*)",
+      "Bash(pyinstaller --noconfirm --onefile --windowed --name \"MapFavoriteRegistrar\" --add-data \"config;config\" --add-data \"data;data\" --hidden-import openpyxl --hidden-import yaml --hidden-import pandas run_gui.py)",
+      "Bash(python -m PyInstaller --version)",
+      "Bash(python -m PyInstaller --noconfirm --onefile --windowed --name \"MapFavoriteRegistrar\" --add-data \"config;config\" --add-data \"data;data\" --hidden-import openpyxl --hidden-import yaml --hidden-import pandas run_gui.py)",
+      "Bash(./dist/MapFavoriteRegistrar.exe)",
+      "Bash(python -m PyInstaller --noconfirm --onefile --windowed --name \"MapFavoriteRegistrar\" --add-data \"config;config\" --add-data \"data;data\" --add-data \"src/main.py;src\" --hidden-import openpyxl --hidden-import yaml --hidden-import pandas --hidden-import playwright --hidden-import playwright.sync_api --collect-all playwright run_gui.py)"
+    ]
+  }
+}

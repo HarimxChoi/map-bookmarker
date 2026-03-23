@@ -1,6 +1,4 @@
-"""
-map-favorite-registrar GUI (tkinter)
-"""
+"""map-bookmarker GUI"""
 import os, sys, threading, logging, json
 
 # EXE 환경에서 Playwright 브라우저 경로 설정 (가장 먼저)
@@ -22,7 +20,7 @@ else:
 from main import load_config, load_data, run_registration, Progress
 
 
-# ── 로그 핸들러: ScrolledText 위젯으로 리디렉션 ─────────────────
+# 로그 핸들러: ScrolledText 위젯으로 리디렉션
 class TextHandler(logging.Handler):
     def __init__(self, text_widget):
         super().__init__()
@@ -39,7 +37,7 @@ class TextHandler(logging.Handler):
         self.text_widget.configure(state="disabled")
 
 
-# ── 색상/스타일 ─────────────────────────────────────────────────
+# 색상/스타일
 COLORS = {
     "bg": "#1e1e2e",
     "surface": "#2a2a3d",
@@ -153,18 +151,16 @@ class App:
         style.configure("Accent.Horizontal.TProgressbar",
                         troughcolor=COLORS["surface"], background=COLORS["accent"])
 
-    # ================================================================
-    #  UI 빌드
-    # ================================================================
+    # --- UI 빌드 ---
     def _build_ui(self):
         # 메인 컨테이너
         main = ttk.Frame(self.root, padding=12)
         main.pack(fill="both", expand=True)
 
-        # ── 상단: 즐겨찾기 폴더명 ────────────────────────────────
+        # 상단: 즐겨찾기 폴더명
         self._build_folder_section(main)
 
-        # ── 탭 ──────────────────────────────────────────────────
+        # 탭
         self.notebook = ttk.Notebook(main)
         self.notebook.pack(fill="both", expand=True, pady=(8, 0))
 
@@ -172,10 +168,10 @@ class App:
         self._build_tab_platform()
         self._build_tab_options()
 
-        # ── 하단: 버튼 + 프로그레스 + 로그 ──────────────────────
+        # 하단: 버튼 + 프로그레스 + 로그
         self._build_bottom(main)
 
-    # ── 즐겨찾기 폴더명 (상단) ───────────────────────────────────
+    # 즐겨찾기 폴더명 (상단)
     def _build_folder_section(self, parent):
         f = ttk.LabelFrame(parent, text="  즐겨찾기 폴더명  ", padding=10)
         f.pack(fill="x", pady=(0, 4))
@@ -200,12 +196,12 @@ class App:
         self.var_naver_folder = tk.StringVar(value="AUTOMATED FAVORITES")
         ttk.Entry(r1, textvariable=self.var_naver_folder, width=35).pack(side="left", padx=4)
 
-    # ── 탭1: 데이터 설정 ────────────────────────────────────────
+    # 탭1: 데이터 설정
     def _build_tab_data(self):
         tab = ttk.Frame(self.notebook, padding=12)
         self.notebook.add(tab, text="  데이터  ")
 
-        # ── 파일 선택 ──
+        # 파일 선택
         f_file = ttk.LabelFrame(tab, text="  입력 파일  ", padding=8)
         f_file.pack(fill="x", pady=(0, 8))
 
@@ -228,7 +224,7 @@ class App:
         ttk.Spinbox(row2, textvariable=self.var_header, from_=1, to=100, width=5).pack(side="left", padx=4)
         ttk.Button(row2, text="새로고침", command=self._reload_file).pack(side="right")
 
-        # ── 컬럼 선택 ──
+        # 컬럼 선택
         f_col = ttk.LabelFrame(tab, text="  컬럼 선택  ", padding=8)
         f_col.pack(fill="x", pady=(0, 8))
 
@@ -264,7 +260,7 @@ class App:
         # 즐겨찾기명 초기화 버튼
         ttk.Button(r2, text="초기화", command=self._clear_name_col).pack(side="right")
 
-        # ── 필터 조건 ──
+        # 필터 조건
         f_filter = ttk.LabelFrame(tab, text="  필터 조건 (AND)  ", padding=6)
         f_filter.pack(fill="x", pady=(0, 8))
 
@@ -301,7 +297,7 @@ class App:
         self.filter_tree.column("value", width=250)
         self.filter_tree.pack(fill="x")
 
-        # ── 데이터 미리보기 ──
+        # 데이터 미리보기
         f_preview = ttk.LabelFrame(tab, text="  데이터 미리보기  ", padding=4)
         f_preview.pack(fill="both", expand=True)
 
@@ -329,7 +325,7 @@ class App:
         scrollbar_x.pack(fill="x")
         self.preview_tree.configure(xscrollcommand=scrollbar_x.set)
 
-    # ── 탭2: 플랫폼 설정 ────────────────────────────────────────
+    # 탭2: 플랫폼 설정
     def _build_tab_platform(self):
         tab = ttk.Frame(self.notebook, padding=12)
         self.notebook.add(tab, text="  플랫폼  ")
@@ -390,7 +386,7 @@ class App:
                 ttk.Button(r, text="Show", width=5,
                            command=lambda: self._toggle_pw(self._naver_pw_entry)).pack(side="left")
 
-    # ── 탭3: 실행 옵션 ──────────────────────────────────────────
+    # 탭3: 실행 옵션
     def _build_tab_options(self):
         tab = ttk.Frame(self.notebook, padding=12)
         self.notebook.add(tab, text="  옵션  ")
@@ -430,7 +426,7 @@ class App:
         ttk.Button(f2, text="설정 불러오기", command=self._load_config_dialog).pack(side="left", padx=8)
         ttk.Button(f2, text="progress 초기화", command=self._reset_progress).pack(side="right")
 
-    # ── 하단 영역: 버튼 + 프로그레스 + 로그 ─────────────────────
+    # 하단 영역: 버튼 + 프로그레스 + 로그
     def _build_bottom(self, parent):
         bottom = ttk.Frame(parent)
         bottom.pack(fill="both", expand=True, pady=(8, 0))
@@ -475,9 +471,7 @@ class App:
         clear_row.configure(style="TLabelframe")
         ttk.Button(clear_row, text="Clear", command=self._clear_log).pack(side="right")
 
-    # ================================================================
-    #  파일 선택 & 컬럼 감지
-    # ================================================================
+    # --- 파일 선택 & 컬럼 감지 ---
     def _browse_file(self):
         path = filedialog.askopenfilename(
             title="입력 파일 선택",
@@ -615,9 +609,7 @@ class App:
         self.var_col_name.set("(선택 안 함)")
         self._update_preview()
 
-    # ================================================================
-    #  필터 관리
-    # ================================================================
+    # --- 필터 관리 ---
     def _add_filter(self):
         dlg = tk.Toplevel(self.root)
         dlg.title("필터 추가")
@@ -691,9 +683,7 @@ class App:
             filters.append(f)
         return filters
 
-    # ================================================================
-    #  유틸
-    # ================================================================
+    # --- 유틸 ---
     def _toggle_pw(self, entry):
         current = entry.cget("show")
         entry.configure(show="" if current == "*" else "*")
@@ -709,9 +699,7 @@ class App:
         self.log_text.delete("1.0", "end")
         self.log_text.configure(state="disabled")
 
-    # ================================================================
-    #  설정 직렬화
-    # ================================================================
+    # --- 설정 직렬화 ---
     def _build_config_dict(self):
         name_col = self.var_col_name.get()
         if name_col == "(선택 안 함)" or not name_col:
@@ -824,9 +812,7 @@ class App:
             json.dump({"done": []}, f)
         self._log_msg("progress.json 초기화 완료")
 
-    # ================================================================
-    #  실행
-    # ================================================================
+    # --- 실행 ---
     def _get_logger(self):
         logger = logging.getLogger("map-reg-gui")
         logger.setLevel(logging.DEBUG)

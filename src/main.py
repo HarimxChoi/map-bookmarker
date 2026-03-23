@@ -1,10 +1,6 @@
 """
-map-favorite-registrar
-─────────────────────
-엑셀/CSV 주소 목록을 카카오맵·네이버지도 즐겨찾기에 자동 등록하는 범용 툴
-
-GitHub: https://github.com/yourname/map-favorite-registrar
-License: MIT
+map-bookmarker - 지도 즐겨찾기 자동 등록
+https://github.com/HarimxChoi/map-bookmarker
 """
 
 import sys
@@ -28,7 +24,7 @@ import openpyxl
 import pandas as pd
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
-# ── 로거 설정 ────────────────────────────────────────────────────
+# 로거 설정
 def setup_logger(log_file: str) -> logging.Logger:
     Path(log_file).parent.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger("map-reg")
@@ -48,12 +44,12 @@ def setup_logger(log_file: str) -> logging.Logger:
     logger.addHandler(fh)
     return logger
 
-# ── 설정 로드 ────────────────────────────────────────────────────
+# 설정 로드
 def load_config(path: str) -> dict:
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
-# ── 데이터 로드 & 필터링 ─────────────────────────────────────────
+# 데이터 로드 & 필터링
 def load_data(cfg: dict) -> list[dict]:
     fi = cfg["input"]
     path = fi["file"]
@@ -112,7 +108,7 @@ def load_data(cfg: dict) -> list[dict]:
 
     return results
 
-# ── 진행상태 저장/불러오기 (resume 지원) ────────────────────────
+# 진행상태 저장/불러오기 (resume 지원)
 class Progress:
     def __init__(self, path: str):
         self.path = path
@@ -130,7 +126,7 @@ class Progress:
     def is_done(self, key: str, platform: str) -> bool:
         return f"{platform}:{key}" in self.done
 
-# ── 카카오맵 자동화 ──────────────────────────────────────────────
+# 카카오맵 자동화
 class KakaoMapRegistrar:
     def __init__(self, cfg: dict, logger: logging.Logger):
         self.cfg = cfg["kakao"]
@@ -230,7 +226,7 @@ class KakaoMapRegistrar:
             # 오버레이가 다시 나타날 수 있으므로 재처리
             self._dismiss_overlays(page)
 
-            # ── 1) 장소 탭 결과 우선 시도 ─────────────────────────────
+            # 1) 장소 탭 결과 우선 시도
             try:
                 page.wait_for_selector(".placelist .PlaceItem", timeout=6000)
                 items = page.locator(".placelist .PlaceItem")
@@ -247,7 +243,7 @@ class KakaoMapRegistrar:
             except PWTimeout:
                 pass
 
-            # ── 2) 주소 탭 결과 → 클릭해서 InfoWindow 열기 → 거기서 fav 클릭 ──
+            # 2) 주소 탭 결과 → 클릭해서 InfoWindow 열기 → 거기서 fav 클릭
             try:
                 page.wait_for_selector(".addrlist li", timeout=4000)
                 addr_items = page.locator(".addrlist li")
@@ -269,7 +265,7 @@ class KakaoMapRegistrar:
             except PWTimeout:
                 pass
 
-            # ── 3) 페이지 어디서든 보이는 fav 버튼 시도 (link_fav 포함) ──
+            # 3) 페이지 어디서든 보이는 fav 버튼 시도 (link_fav 포함)
             for sel in ['a[data-id="fav"].link_fav', 'a[data-id="fav"].fav',
                         '[data-id="fav"]']:
                 btn = page.locator(sel)
@@ -298,7 +294,7 @@ class KakaoMapRegistrar:
             folder = self.cfg.get("folder", "")
 
             if folder:
-                # ── 1) 기존 폴더가 있는지 확인 (strong.txt_folder 텍스트 매칭) ──
+                # 1) 기존 폴더가 있는지 확인 (strong.txt_folder 텍스트 매칭)
                 existing = page.locator(f"strong.txt_folder:has-text('{folder}')")
                 if existing.count() > 0 and existing.first.is_visible(timeout=2000):
                     # 폴더의 부모 링크(a.link_folder) 클릭
@@ -306,7 +302,7 @@ class KakaoMapRegistrar:
                     self.logger.info(f"    📁 기존 폴더 선택: {folder}")
                     time.sleep(0.5)
                 else:
-                    # ── 2) 폴더 없으면 새로 생성 ──
+                    # 2) 폴더 없으면 새로 생성
                     self.logger.info(f"    📁 폴더 '{folder}' 없음 → 새로 생성")
                     add_folder_btn = page.locator("span.ico_folder.add")
                     if add_folder_btn.count() > 0 and add_folder_btn.first.is_visible(timeout=2000):
@@ -326,7 +322,7 @@ class KakaoMapRegistrar:
                         self.logger.info(f"    ✅ 폴더 생성 완료: {folder}")
                         time.sleep(0.5)
 
-            # ── 3) 즐겨찾기 이름 수정 (#display1) ──
+            # 3) 즐겨찾기 이름 수정 (#display1)
             name_input = page.locator("#display1")
             if name_input.count() > 0:
                 try:
@@ -339,7 +335,7 @@ class KakaoMapRegistrar:
                 except Exception:
                     pass
 
-            # ── 4) 최종 완료 버튼 클릭 ──
+            # 4) 최종 완료 버튼 클릭
             ok_btn = page.locator('button[data-id="addOK"]')
             if ok_btn.count() > 0 and ok_btn.first.is_visible(timeout=2000):
                 ok_btn.first.click(force=True)
@@ -357,7 +353,7 @@ class KakaoMapRegistrar:
             self.logger.warning(f"    ⚠ 저장 팝업 처리 중 오류: {e}")
 
 
-# ── 네이버지도 자동화 ────────────────────────────────────────────
+# 네이버지도 자동화
 class NaverMapRegistrar:
     def __init__(self, cfg: dict, logger: logging.Logger):
         self.cfg = cfg["naver"]
@@ -424,7 +420,7 @@ class NaverMapRegistrar:
             page.goto("https://map.naver.com/")
             time.sleep(3)
 
-            # ── 1) 검색 ──
+            # 1) 검색
             search_input = page.locator("input.input_search")
             search_input.wait_for(state="visible", timeout=15000)
             search_input.fill("")
@@ -432,7 +428,7 @@ class NaverMapRegistrar:
             search_input.press("Enter")
             time.sleep(delay + 2)
 
-            # ── 2) 검색결과 iframe 진입 & 첫 번째 항목 클릭 ──
+            # 2) 검색결과 iframe 진입 & 첫 번째 항목 클릭
             # 네이버지도는 검색결과가 iframe(#searchIframe) 안에 렌더링됨
             search_frame = None
             for frame in page.frames:
@@ -451,7 +447,7 @@ class NaverMapRegistrar:
                     self.logger.warning(f"  ❌ 검색결과 없음: {addr}")
                     return False
 
-            # ── 3) 상세 페이지 iframe에서 즐겨찾기 버튼 클릭 ──
+            # 3) 상세 페이지 iframe에서 즐겨찾기 버튼 클릭
             entry_frame = None
             for frame in page.frames:
                 if "place" in frame.url or "entry" in frame.url:
@@ -469,7 +465,7 @@ class NaverMapRegistrar:
                 self.logger.warning(f"  ❌ 즐겨찾기 버튼 없음: {addr}")
                 return False
 
-            # ── 4) 폴더 선택/생성 팝업 처리 ──
+            # 4) 폴더 선택/생성 팝업 처리
             self._handle_naver_save_popup(page, name)
 
             self.logger.info(f"  ✅ 네이버지도 등록: {name} | {addr}")
@@ -486,7 +482,7 @@ class NaverMapRegistrar:
             folder = self.cfg.get("folder", "")
 
             if folder:
-                # ── 기존 폴더 찾기 (strong.swt-save-group-name 텍스트 매칭) ──
+                # 기존 폴더 찾기 (strong.swt-save-group-name 텍스트 매칭)
                 existing = page.locator(f"strong.swt-save-group-name:has-text('{folder}')")
                 if existing.count() > 0:
                     try:
@@ -502,7 +498,7 @@ class NaverMapRegistrar:
                     except Exception:
                         pass
                 else:
-                    # ── 폴더 새로 생성 ──
+                    # 폴더 새로 생성
                     self.logger.info(f"    📁 폴더 '{folder}' 없음 → 새로 생성")
                     try:
                         # "새 리스트 만들기" 버튼 클릭
@@ -524,7 +520,7 @@ class NaverMapRegistrar:
                     except Exception as e:
                         self.logger.warning(f"    ⚠ 폴더 생성 실패: {e}")
 
-            # ── 저장 버튼 클릭 ──
+            # 저장 버튼 클릭
             save_btn = page.locator("button.swt-save-btn")
             try:
                 if save_btn.count() > 0 and save_btn.first.is_visible(timeout=2000):
@@ -536,7 +532,7 @@ class NaverMapRegistrar:
         except Exception as e:
             self.logger.warning(f"    ⚠ 네이버 저장 팝업 처리 중 오류: {e}")
 
-# ── Chromium 실행파일 탐색 (다중 경로 fallback) ───────────────────
+# Chromium 실행파일 탐색 (다중 경로 fallback)
 def _find_chromium_executable() -> Optional[str]:
     """여러 경로에서 Chromium 실행파일을 찾아 반환. 못 찾으면 None (Playwright 기본 사용)"""
     import glob as _glob
@@ -559,7 +555,7 @@ def _find_chromium_executable() -> Optional[str]:
                 return found[0]
     return None
 
-# ── 등록 실행 (GUI/CLI 공용) ──────────────────────────────────────
+# 등록 실행 (GUI/CLI 공용)
 def run_registration(cfg, logger, progress, items, use_kakao, use_naver,
                      on_progress=None, stop_event=None):
     """
@@ -582,7 +578,7 @@ def run_registration(cfg, logger, progress, items, use_kakao, use_naver,
         browser = p.chromium.launch(**launch_opts)
         context = browser.new_context(viewport={"width": 1400, "height": 900})
 
-        # ── 카카오맵 ─────────────────────────────────────────────
+        # 카카오맵
         if use_kakao:
             page = context.new_page()
             reg = KakaoMapRegistrar(cfg, logger)
@@ -620,7 +616,7 @@ def run_registration(cfg, logger, progress, items, use_kakao, use_naver,
             finally:
                 page.close()
 
-        # ── 네이버지도 ───────────────────────────────────────────
+        # 네이버지도
         if use_naver:
             if stop_event and stop_event.is_set():
                 browser.close()
@@ -663,7 +659,7 @@ def run_registration(cfg, logger, progress, items, use_kakao, use_naver,
 
         browser.close()
 
-    # ── 결과 요약 ────────────────────────────────────────────────
+    # 결과 요약
     logger.info("\n" + "=" * 50)
     logger.info("📊 최종 결과")
     if use_kakao:
@@ -676,7 +672,7 @@ def run_registration(cfg, logger, progress, items, use_kakao, use_naver,
     return stats
 
 
-# ── 메인 실행 (CLI) ──────────────────────────────────────────────
+# 메인 실행 (CLI)
 def main():
     parser = argparse.ArgumentParser(
         description="엑셀/CSV 주소 목록을 카카오맵·네이버지도 즐겨찾기에 자동 등록"
