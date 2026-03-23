@@ -99,6 +99,39 @@ def load_data(cfg: dict) -> list[dict]:
         if not addr:
             continue
 
+        # 동/호수/층수 자동 추출하여 즐겨찾기명에 추가
+        if cfg.get("append_unit_info", False):
+            import re
+            unit_parts = []
+
+            # 쉼표 뒤 상세주소 부분 분리
+            after_comma = ""
+            if "," in addr:
+                after_comma = addr.split(",", 1)[1].strip()
+
+            # "101-501" 패턴 (쉼표 뒤) → 101동 501호로 해석
+            dash_match = re.search(r'(\d+)-(\d+)', after_comma) if after_comma else None
+            if dash_match:
+                unit_parts.append(f"{dash_match.group(1)}동")
+                unit_parts.append(f"{dash_match.group(2)}호")
+            else:
+                # "106동" 패턴
+                dong_match = re.search(r'(\d+동)', addr)
+                if dong_match:
+                    unit_parts.append(dong_match.group(1))
+                # "1102호" 패턴
+                ho_match = re.search(r'(\d+호)', addr)
+                if ho_match:
+                    unit_parts.append(ho_match.group(1))
+
+            # "16층", "3층" 패턴
+            floor_match = re.search(r'(\d+층)', addr)
+            if floor_match:
+                unit_parts.append(floor_match.group(1))
+
+            if unit_parts:
+                name = f"{name} ({' '.join(unit_parts)})"
+
         results.append({
             "name": name,
             "address": addr,
@@ -148,7 +181,9 @@ class KakaoMapRegistrar:
         time.sleep(1)
 
         page.fill("input[name='loginId']", self.cfg["id"])
+        time.sleep(1.5)
         page.fill("input[name='password']", self.cfg["password"])
+        time.sleep(2)
         page.click("button.submit")
 
         # 카카오톡 2단계 인증 대기 (최대 5분)
@@ -288,39 +323,68 @@ class KakaoMapRegistrar:
             return False
 
     def _handle_save_popup(self, page, name: str):
-        """즐겨찾기 저장 팝업 처리: 폴더 선택/생성 → 이름 수정 → 완료"""
+        """즐겨찾기 저장 팝업 처리: 폴더 선택/생성 → 이름 수정 → 완료
+        동일 주소가 이미 폴더에 있으면(SAVED) 중복N 폴더로 자동 분산"""
         try:
             time.sleep(1)
-            folder = self.cfg.get("folder", "")
+            base_folder = self.cfg.get("folder", "")
 
-            if folder:
-                # 1) 기존 폴더가 있는지 확인 (strong.txt_folder 텍스트 매칭)
-                existing = page.locator(f"strong.txt_folder:has-text('{folder}')")
-                if existing.count() > 0 and existing.first.is_visible(timeout=2000):
-                    # 폴더의 부모 링크(a.link_folder) 클릭
-                    existing.first.locator("..").locator("..").click(force=True)
-                    self.logger.info(f"    📁 기존 폴더 선택: {folder}")
-                    time.sleep(0.5)
-                else:
-                    # 2) 폴더 없으면 새로 생성
-                    self.logger.info(f"    📁 폴더 '{folder}' 없음 → 새로 생성")
-                    add_folder_btn = page.locator("span.ico_folder.add")
-                    if add_folder_btn.count() > 0 and add_folder_btn.first.is_visible(timeout=2000):
-                        add_folder_btn.first.click(force=True)
+            if base_folder:
+                # 시도할 폴더 순서: base → base 중복1 → base 중복2 → ...
+                folder_candidates = [base_folder]
+                for n in range(1, 50):
+                    folder_candidates.append(f"{base_folder} 중복{n}")
+
+                selected = False
+                for folder in folder_candidates:
+                    # 폴더가 존재하는지 확인
+                    existing = page.locator(f"strong.txt_folder:has-text('{folder}')")
+                    if existing.count() > 0:
+                        try:
+                            if not existing.first.is_visible(timeout=1000):
+                                continue
+                        except Exception:
+                            continue
+
+                        # 폴더의 li가 SAVED 클래스인지 확인 (이미 이 주소가 등록됨)
+                        parent_li = existing.first.locator("xpath=ancestor::li")
+                        is_saved = False
+                        if parent_li.count() > 0:
+                            li_class = parent_li.first.get_attribute("class") or ""
+                            is_saved = "SAVED" in li_class
+
+                        if is_saved:
+                            self.logger.info(f"    📁 '{folder}' → 이미 등록된 주소, 다음 폴더 시도")
+                            continue
+
+                        # SAVED가 아니면 이 폴더에 등록
+                        existing.first.locator("..").locator("..").click(force=True)
+                        self.logger.info(f"    📁 기존 폴더 선택: {folder}")
                         time.sleep(0.5)
+                        selected = True
+                        break
+                    else:
+                        # 폴더가 없으면 새로 생성
+                        self.logger.info(f"    📁 폴더 '{folder}' 없음 → 새로 생성")
+                        add_folder_btn = page.locator("span.ico_folder.add")
+                        if add_folder_btn.count() > 0 and add_folder_btn.first.is_visible(timeout=2000):
+                            add_folder_btn.first.click(force=True)
+                            time.sleep(0.5)
 
-                        # 폴더명 입력
-                        folder_input = page.locator("#folderName")
-                        folder_input.wait_for(state="visible", timeout=3000)
-                        # readonly 속성 제거 후 입력
-                        page.evaluate('document.querySelector("#folderName")?.removeAttribute("readonly")')
-                        folder_input.fill(folder)
-                        time.sleep(0.3)
+                            folder_input = page.locator("#folderName")
+                            folder_input.wait_for(state="visible", timeout=3000)
+                            page.evaluate('document.querySelector("#folderName")?.removeAttribute("readonly")')
+                            folder_input.fill(folder)
+                            time.sleep(0.3)
 
-                        # 폴더 생성 완료 버튼
-                        page.locator('button[data-id="addFolderOK"]').click(force=True)
-                        self.logger.info(f"    ✅ 폴더 생성 완료: {folder}")
-                        time.sleep(0.5)
+                            page.locator('button[data-id="addFolderOK"]').click(force=True)
+                            self.logger.info(f"    ✅ 폴더 생성 완료: {folder}")
+                            time.sleep(0.5)
+                        selected = True
+                        break
+
+                if not selected:
+                    self.logger.warning(f"    ⚠ 사용 가능한 폴더를 찾지 못함")
 
             # 3) 즐겨찾기 이름 수정 (#display1)
             name_input = page.locator("#display1")
@@ -366,9 +430,11 @@ class NaverMapRegistrar:
         time.sleep(1)
 
         page.fill("#id", self.cfg["id"])
+        time.sleep(1.5)
         page.fill("#pw", self.cfg["password"])
-        page.click("button.btn_login, .btn_global[type='submit']", timeout=5000)
         time.sleep(2)
+        page.click("button.btn_login, .btn_global[type='submit']", timeout=5000)
+        time.sleep(3)
 
         # 로그인 후 처리 (캡차, 2차 인증, 기기 등록 등)
         # 캡차/2차인증이 있으면 사용자가 직접 처리할 때까지 대기 (최대 5분)
@@ -566,6 +632,18 @@ def run_registration(cfg, logger, progress, items, use_kakao, use_naver,
     stats = {"kakao": {"ok": 0, "fail": 0, "skip": 0},
              "naver": {"ok": 0, "fail": 0, "skip": 0}}
 
+    # 중복 주소 감지
+    from collections import Counter
+    addr_counts = Counter(item["address"] for item in items)
+    duplicates = {addr: cnt for addr, cnt in addr_counts.items() if cnt > 1}
+    if duplicates:
+        logger.info(f"\n⚠ 동일 주소 {len(duplicates)}건 감지 (중복 폴더로 자동 분산됩니다)")
+        for addr, cnt in list(duplicates.items())[:10]:
+            names = [it["name"] for it in items if it["address"] == addr]
+            logger.info(f"  [{cnt}회] {addr[:50]} → {', '.join(names[:5])}")
+        if len(duplicates) > 10:
+            logger.info(f"  ... 외 {len(duplicates) - 10}건")
+
     with sync_playwright() as p:
         # Chromium 실행파일 경로 탐색 (여러 경로 fallback)
         chrome_path = _find_chromium_executable()
@@ -668,6 +746,11 @@ def run_registration(cfg, logger, progress, items, use_kakao, use_naver,
     if use_naver:
         s = stats["naver"]
         logger.info(f"  네이버지도: ✅{s['ok']} ❌{s['fail']} ⏭{s['skip']}")
+    if duplicates:
+        logger.info(f"\n📋 동일 주소 리포트 ({len(duplicates)}건)")
+        for addr, cnt in duplicates.items():
+            names = [it["name"] for it in items if it["address"] == addr]
+            logger.info(f"  [{cnt}회] {', '.join(names)} → {addr[:60]}")
     logger.info("=" * 50)
     return stats
 

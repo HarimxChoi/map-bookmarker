@@ -211,7 +211,10 @@ class App:
         self.var_file = tk.StringVar()
         e = ttk.Entry(row, textvariable=self.var_file, width=60)
         e.pack(side="left", fill="x", expand=True)
-        ttk.Button(row, text="파일 선택", command=self._browse_file).pack(side="left", padx=(6, 0))
+        tk.Button(row, text="파일 선택", command=self._browse_file,
+                  bg=COLORS["accent"], fg="#ffffff", relief="flat",
+                  font=("Segoe UI", 9, "bold"), padx=12, pady=2,
+                  cursor="hand2", activebackground=COLORS["accent_hover"]).pack(side="left", padx=(6, 0))
 
         row2 = ttk.Frame(f_file)
         row2.pack(fill="x", pady=(6, 0))
@@ -222,7 +225,10 @@ class App:
         ttk.Label(row2, text="Header Row:", background=COLORS["surface"]).pack(side="left")
         self.var_header = tk.IntVar(value=1)
         ttk.Spinbox(row2, textvariable=self.var_header, from_=1, to=100, width=5).pack(side="left", padx=4)
-        ttk.Button(row2, text="새로고침", command=self._reload_file).pack(side="right")
+        tk.Button(row2, text="새로고침", command=self._reload_file,
+                  bg=COLORS["card"], fg=COLORS["text"], relief="flat",
+                  font=("Segoe UI", 9), padx=10, pady=2,
+                  cursor="hand2", activebackground=COLORS["surface"]).pack(side="right")
 
         # 컬럼 선택
         f_col = ttk.LabelFrame(tab, text="  컬럼 선택  ", padding=8)
@@ -257,8 +263,20 @@ class App:
                   foreground=COLORS["text_dim"], background=COLORS["surface"],
                   font=("Segoe UI", 9)).pack(side="left", padx=4)
 
+        # 동/호수 자동 추가 체크박스
+        r3 = ttk.Frame(f_col)
+        r3.pack(fill="x", pady=3)
+        r3.configure(style="TLabelframe")
+        ttk.Label(r3, text="", width=18, background=COLORS["surface"]).pack(side="left")
+        self.var_append_unit = tk.BooleanVar(value=True)
+        ttk.Checkbutton(r3, text="동/호수 자동 추가  (예: 홍길동 → 홍길동 (106동 1102호))",
+                        variable=self.var_append_unit).pack(side="left", padx=4)
+
         # 즐겨찾기명 초기화 버튼
-        ttk.Button(r2, text="초기화", command=self._clear_name_col).pack(side="right")
+        tk.Button(r2, text="초기화", command=self._clear_name_col,
+                  bg=COLORS["card"], fg=COLORS["text"], relief="flat",
+                  font=("Segoe UI", 9), padx=10, pady=2,
+                  cursor="hand2", activebackground=COLORS["surface"]).pack(side="right")
 
         # 필터 조건
         f_filter = ttk.LabelFrame(tab, text="  필터 조건 (AND)  ", padding=6)
@@ -490,7 +508,12 @@ class App:
     def _reload_file(self):
         path = self.var_file.get()
         if path and os.path.exists(path):
+            # 컬럼 선택 리셋
+            self.var_col_addr.set("")
+            self.var_col_name.set("(선택 안 함)")
             self._load_file(path)
+        else:
+            self._log_msg("파일 경로가 비어있거나 존재하지 않습니다.")
 
     def _load_file(self, path):
         """파일 로드 → 컬럼 감지 → 자동 추천 → 미리보기"""
@@ -719,6 +742,7 @@ class App:
             },
             "bookmark_name": f"{{{name_col}}}" if name_col else "{" + (self.var_col_addr.get() or "주소") + "}",
             "bookmark_memo": "",
+            "append_unit_info": self.var_append_unit.get(),
             "filters": self._get_filters(),
             "kakao": {
                 "enabled": self.var_kakao_on.get(),

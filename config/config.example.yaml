@@ -42,6 +42,6 @@ naver:
 options:
   headless: false        # false: 브라우저 화면 보임 (권장)
   delay_ms: 800          # 등록 간격 (ms). 너무 빠르면 차단 위험
-  max_retry: 3           # 실패 시 재시도 횟수
+  max_retry: 1           # 실패 시 재시도 횟수
   resume: true           # 중단 후 재시작 시 이미 등록된 건 건너뜀
   log_file: "logs/result.log"
