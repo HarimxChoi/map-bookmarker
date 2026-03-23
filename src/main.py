@@ -151,12 +151,12 @@ class KakaoMapRegistrar:
         page.fill("input[name='password']", self.cfg["password"])
         page.click("button.submit")
 
-        # 카카오톡 2단계 인증 대기 (최대 2분)
-        self.logger.info("📱 카카오톡 알림을 확인하고 핸드폰에서 로그인을 승인해주세요... (최대 2분 대기)")
+        # 카카오톡 2단계 인증 대기 (최대 5분)
+        self.logger.info("📱 카카오톡 알림을 확인하고 핸드폰에서 로그인을 승인해주세요... (최대 5분 대기)")
         try:
-            page.wait_for_url("**/map.kakao.com/**", timeout=120000)
+            page.wait_for_url("**/map.kakao.com/**", timeout=300000)
         except PWTimeout:
-            raise Exception("카카오 로그인 타임아웃 — 2분 내에 카카오톡 인증을 완료하지 않았거나 로그인 정보가 잘못됨")
+            raise Exception("카카오 로그인 타임아웃 — 5분 내에 카카오톡 인증을 완료하지 않았거나 로그인 정보가 잘못됨")
         time.sleep(1)
         self.logged_in = True
         self.logger.info("✅ 카카오맵 로그인 성공")
