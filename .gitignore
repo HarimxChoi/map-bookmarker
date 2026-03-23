@@ -1,0 +1,31 @@
+# 데이터 및 로그
+data/
+logs/
+config/config.yaml
+config/my_*.yaml
+
+# 빌드 결과
+dist/
+dist2/
+build/
+*.spec
+
+# Python
+*.pyc
+__pycache__/
+.env
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 기획문서
+*.docx
+
+# 테스트
+test_sandbox.wsb

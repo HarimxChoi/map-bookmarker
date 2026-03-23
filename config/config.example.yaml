@@ -1,0 +1,47 @@
+# ================================================================
+#  map-bookmarker 설정 파일
+#  이 파일을 config.yaml로 복사한 후 수정하세요
+# ================================================================
+
+# 입력 파일
+input:
+  file: "data/주소목록.xlsx"       # Excel(.xlsx/.xls) 또는 CSV(.csv)
+  sheet: "Sheet1"                  # 엑셀 시트명 (CSV는 무시)
+  header_row: 1                    # 헤더가 있는 행 번호 (1부터 시작)
+
+# 컬럼 매핑 (내 파일의 실제 컬럼명을 적어주세요)
+columns:
+  name:    "이름"        # 즐겨찾기에 표시될 이름 컬럼
+  address: "주소"        # 주소 컬럼 (필수)
+
+# 즐겨찾기 이름 형식 ({컬럼명}으로 조합 가능)
+bookmark_name: "{이름}"
+bookmark_memo: ""
+
+# 필터 조건 (비워두면 전체 등록)
+filters: []
+  # 예시:
+  # - column: "상태"
+  #   not_contains: ["완료", "제외"]
+
+# 카카오맵
+kakao:
+  enabled: true
+  id: "카카오_이메일"
+  password: "비밀번호"
+  folder: "AUTOMATED FAVORITES"
+
+# 네이버지도
+naver:
+  enabled: true
+  id: "네이버_아이디"
+  password: "비밀번호"
+  folder: "AUTOMATED FAVORITES"
+
+# 실행 옵션
+options:
+  headless: false        # false: 브라우저 화면 보임 (권장)
+  delay_ms: 800          # 등록 간격 (ms). 너무 빠르면 차단 위험
+  max_retry: 3           # 실패 시 재시도 횟수
+  resume: true           # 중단 후 재시작 시 이미 등록된 건 건너뜀
+  log_file: "logs/result.log"
