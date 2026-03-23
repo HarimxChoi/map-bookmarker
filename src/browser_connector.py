@@ -1,8 +1,6 @@
 """
-browser_connector.py
-────────────────────
-사용자의 실제 브라우저(Chrome/Edge/Firefox)에 연결하는 모듈.
-기존 로그인 세션을 그대로 사용하므로 ID/PW 입력, 2단계 인증 불필요.
+사용자의 실제 브라우저(Chrome/Edge)에 연결하는 모듈.
+기존 로그인 세션을 재사용하여 별도 로그인 불필요.
 """
 
 import os
@@ -15,7 +13,7 @@ from typing import Optional
 
 from playwright.sync_api import sync_playwright, Browser, BrowserContext
 
-# ── 브라우저 실행 파일 자동 탐색 ────────────────────────────────
+# 브라우저 실행 파일 경로
 CHROME_PATHS = {
     "Windows": [
         r"C:\Program Files\Google\Chrome\Application\chrome.exe",
@@ -119,7 +117,7 @@ class BrowserConnector:
         print("⚠ 기존 브라우저 연결 실패 → Playwright 내장 Chromium 사용")
         return self._playwright_fallback(playwright)
 
-    # ── 방식 1: CDP (Chrome DevTools Protocol) ─────────────────
+    # 방식 1: CDP
     def _try_cdp(self, playwright) -> Optional[BrowserContext]:
         """
         사용자가 Chrome을 디버그 모드로 열어 놓으면 거기에 붙음.
@@ -162,7 +160,7 @@ class BrowserConnector:
             print(f"  CDP 연결 실패: {e}")
             return None
 
-    # ── 방식 2: 기존 프로파일 디렉토리 사용 ────────────────────
+    # 방식 2: 프로파일 복사
     def _try_profile(self, playwright) -> Optional[BrowserContext]:
         """
         기존 Chrome 프로파일을 임시 복사해서 사용.
@@ -209,7 +207,7 @@ class BrowserConnector:
             print(f"  프로파일 연결 실패: {e}")
             return None
 
-    # ── 방식 3: Playwright 내장 Chromium (fallback) ─────────────
+    # 방식 3: Playwright Chromium (fallback)
     def _playwright_fallback(self, playwright) -> BrowserContext:
         headless = self.cfg.get("headless", False)
         browser = playwright.chromium.launch(

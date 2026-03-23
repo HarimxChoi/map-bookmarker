@@ -220,19 +220,44 @@ class KakaoMapRegistrar:
             pass
 
     @staticmethod
-    def _clean_address(addr: str) -> str:
-        """검색에 불필요한 상세주소(동/호수, 괄호 내용) 제거"""
+    def _clean_address(addr: str, level: int = 1) -> str:
+        """검색에 불필요한 상세주소 제거. level이 높을수록 더 많이 제거"""
         import re
+        # level 1: 기본 정리
         # 쉼표 뒤의 동·호 정보 제거: "내정로 186, 106동 1102호 (수내동,...)" → "내정로 186"
         addr = re.split(r',\s*\d+동', addr)[0]
-        # 괄호 안 내용 제거: "(수내동,파크타운대림아파트)" → ""
+        # 괄호 안 내용 제거
         addr = re.sub(r'\([^)]*\)', '', addr)
-        # 연속 공백 정리
+
+        if level >= 2:
+            # level 2: 붙어있는 동호수 패턴도 제거 (아파트명101동502호 → 아파트명)
+            addr = re.sub(r'\S*\d+동\d*호?\S*', '', addr)
+            # 중복 단어 제거 (샛별마을라이프아파트 샛별마을라이프아파트 → 하나만)
+            words = addr.split()
+            seen = set()
+            deduped = []
+            for w in words:
+                if w not in seen:
+                    seen.add(w)
+                    deduped.append(w)
+            addr = ' '.join(deduped)
+
         addr = re.sub(r'\s+', ' ', addr).strip()
         return addr
 
     def register(self, page, item: dict) -> bool:
-        """주소 검색 → 즐겨찾기 저장"""
+        """주소 검색 → 즐겨찾기 저장. 실패 시 더 강한 주소 정리로 자동 재시도 (재시도 횟수 무관)"""
+        # level 1로 시도, 실패하면 level 2로 재시도
+        for level in [1, 2]:
+            result = self._try_register(page, item, level)
+            if result:
+                return True
+            if level == 1:
+                self.logger.info(f"    🔄 주소 재정리(level 2)로 재검색...")
+        return False
+
+    def _try_register(self, page, item: dict, clean_level: int) -> bool:
+        """주소 검색 → 즐겨찾기 저장 (1회 시도)"""
         addr = item["address"]
         name = item["name"]
         delay = self.opts.get("delay_ms", 800) / 1000
@@ -250,8 +275,8 @@ class KakaoMapRegistrar:
             # 검색창 로드 대기
             page.wait_for_selector(search_sel, timeout=10000)
 
-            # 상세주소 정리 (동/호수 제거하여 검색 정확도 향상)
-            clean_addr = self._clean_address(addr)
+            # 상세주소 정리
+            clean_addr = self._clean_address(addr, level=clean_level)
 
             page.fill(search_sel, "")
             page.fill(search_sel, clean_addr)
@@ -315,11 +340,13 @@ class KakaoMapRegistrar:
                 except Exception:
                     pass
 
-            self.logger.warning(f"  ❌ 검색결과/즐겨찾기 버튼 없음: {addr}")
+            if clean_level >= 2:
+                self.logger.warning(f"  ❌ 검색결과/즐겨찾기 버튼 없음: {addr}")
             return False
 
         except Exception as e:
-            self.logger.error(f"  ❌ 카카오맵 오류 ({addr}): {e}")
+            if clean_level >= 2:
+                self.logger.error(f"  ❌ 카카오맵 오류 ({addr}): {e}")
             return False
 
     def _handle_save_popup(self, page, name: str):
@@ -337,28 +364,53 @@ class KakaoMapRegistrar:
 
                 selected = False
                 for folder in folder_candidates:
-                    # 폴더가 존재하는지 확인
-                    existing = page.locator(f"strong.txt_folder:has-text('{folder}')")
-                    if existing.count() > 0:
-                        try:
-                            if not existing.first.is_visible(timeout=1000):
-                                continue
-                        except Exception:
-                            continue
+                    # 정확한 폴더명 매칭 (JS로 텍스트 완전 일치 확인)
+                    match_js = f'''
+                        (() => {{
+                            const els = document.querySelectorAll("strong.txt_folder");
+                            for (const el of els) {{
+                                if (el.textContent.trim() === "{folder}") return true;
+                            }}
+                            return false;
+                        }})()
+                    '''
+                    folder_exists = page.evaluate(match_js)
 
-                        # 폴더의 li가 SAVED 클래스인지 확인 (이미 이 주소가 등록됨)
-                        parent_li = existing.first.locator("xpath=ancestor::li")
-                        is_saved = False
-                        if parent_li.count() > 0:
-                            li_class = parent_li.first.get_attribute("class") or ""
-                            is_saved = "SAVED" in li_class
+                    if folder_exists:
+                        # 정확히 일치하는 폴더의 li 요소에서 SAVED 확인
+                        saved_js = f'''
+                            (() => {{
+                                const els = document.querySelectorAll("strong.txt_folder");
+                                for (const el of els) {{
+                                    if (el.textContent.trim() === "{folder}") {{
+                                        const li = el.closest("li");
+                                        return li ? li.classList.contains("SAVED") : false;
+                                    }}
+                                }}
+                                return false;
+                            }})()
+                        '''
+                        is_saved = page.evaluate(saved_js)
 
                         if is_saved:
                             self.logger.info(f"    📁 '{folder}' → 이미 등록된 주소, 다음 폴더 시도")
                             continue
 
-                        # SAVED가 아니면 이 폴더에 등록
-                        existing.first.locator("..").locator("..").click(force=True)
+                        # SAVED가 아니면 이 폴더 클릭
+                        click_js = f'''
+                            (() => {{
+                                const els = document.querySelectorAll("strong.txt_folder");
+                                for (const el of els) {{
+                                    if (el.textContent.trim() === "{folder}") {{
+                                        const link = el.closest("a.link_folder");
+                                        if (link) {{ link.click(); return true; }}
+                                        el.click(); return true;
+                                    }}
+                                }}
+                                return false;
+                            }})()
+                        '''
+                        page.evaluate(click_js)
                         self.logger.info(f"    📁 기존 폴더 선택: {folder}")
                         time.sleep(0.5)
                         selected = True
@@ -675,12 +727,7 @@ def run_registration(cfg, logger, progress, items, use_kakao, use_naver,
                             on_progress("kakao", "skip", item, stats)
                         continue
                     logger.info(f"  [{i}/{len(items)}] {item['name']}")
-                    ok = False
-                    for attempt in range(cfg["options"].get("max_retry", 3)):
-                        ok = reg.register(page, item)
-                        if ok:
-                            break
-                        time.sleep(1)
+                    ok = reg.register(page, item)
                     if ok:
                         stats["kakao"]["ok"] += 1
                         progress.mark(key, "kakao")
@@ -716,12 +763,7 @@ def run_registration(cfg, logger, progress, items, use_kakao, use_naver,
                             on_progress("naver", "skip", item, stats)
                         continue
                     logger.info(f"  [{i}/{len(items)}] {item['name']}")
-                    ok = False
-                    for attempt in range(cfg["options"].get("max_retry", 3)):
-                        ok = reg.register(page, item)
-                        if ok:
-                            break
-                        time.sleep(1)
+                    ok = reg.register(page, item)
                     if ok:
                         stats["naver"]["ok"] += 1
                         progress.mark(key, "naver")

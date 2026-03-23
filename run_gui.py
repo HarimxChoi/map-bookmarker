@@ -11,7 +11,7 @@ if getattr(sys, 'frozen', False):
 
 import glob, subprocess
 
-# ── 브라우저 경로 통일 ──
+# 브라우저 경로 설정
 # EXE 환경에서 playwright가 찾는 경로와 설치 경로를 일치시킴
 _BROWSERS_PATH = os.path.join(os.path.expanduser("~"), "AppData", "Local", "ms-playwright")
 os.environ["PLAYWRIGHT_BROWSERS_PATH"] = _BROWSERS_PATH
