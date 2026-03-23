@@ -5,7 +5,11 @@
 주소 하나하나 검색해서 즐겨찾기 누르는 반복 작업, 이제 안 해도 됩니다.
 엑셀 파일 하나만 준비하면 수백 개 주소를 자동으로 즐겨찾기에 등록합니다.
 
-https://github.com/user-attachments/assets/demo.mp4
+
+
+https://github.com/user-attachments/assets/3236d995-b553-4c00-8322-ae3392bf36af
+
+
 
 ---
 
